@@ -32,6 +32,19 @@ DEFAULT_INSTRUCTIONS = (
     "- 출력은 Markdown. 첫 줄은 '제목: ...' 형식의 메일 제목으로 시작한다."
 )
 
+def get_secret(name: str):
+    """시크릿을 안전하게 읽는다.
+
+    Streamlit은 secrets.toml이 아예 없으면 st.secrets 접근 시 예외를 던진다.
+    키를 안 넣고 대시보드만 볼 때(예: Claude Desktop 수제작 단계)도 앱이
+    떠야 하므로, 없으면 None을 돌려준다. 시크릿은 여전히 st.secrets로만 읽는다.
+    """
+    try:
+        return st.secrets.get(name, None)
+    except Exception:
+        return None
+
+
 # 세션 상태 = 이번 접속 동안의 실행 이력 (영구 저장은 README의 업그레이드 참고)
 if "runs" not in st.session_state:
     st.session_state.runs = []        # 완료/진행된 실행 기록
@@ -58,7 +71,7 @@ def parse_input(uploaded_file) -> str:
 
 def draft_email(notes: str, context: str, model: str) -> str:
     """2단계: Claude가 회의록 + 추가 맥락으로 메일 초안(Markdown)을 만든다."""
-    key = st.secrets.get("ANTHROPIC_API_KEY", None)
+    key = get_secret("ANTHROPIC_API_KEY")
     if not key:
         raise RuntimeError(
             "ANTHROPIC_API_KEY가 없습니다. Streamlit Cloud 앱 설정의 Secrets에 등록하세요. "
@@ -101,7 +114,7 @@ def format_gmail_html(draft_md: str) -> str:
 with st.sidebar:
     st.markdown("### 설정")
     model = st.selectbox("초안 작성 모델", MODELS, index=MODELS.index(DEFAULT_MODEL))
-    key_ok = bool(st.secrets.get("ANTHROPIC_API_KEY", None))
+    key_ok = bool(get_secret("ANTHROPIC_API_KEY"))
     st.markdown("**Claude API 키**")
     st.success("연결됨") if key_ok else st.warning("미설정 — Secrets에 등록 필요")
     st.markdown("---")
