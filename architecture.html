@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>메일 초안 스튜디오 — 아키텍처 & 제언</title>
+<style>
+  :root{
+    --bg:#0d1117; --panel:#161b22; --panel2:#1c2330; --line:#2d3340;
+    --ink:#e6edf3; --muted:#8b949e; --dim:#6e7681;
+    --blue:#58a6ff; --green:#3fb950; --amber:#d29922; --red:#f85149;
+    --purple:#bc8cff; --cyan:#39c5cf;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font:15px/1.6 -apple-system,"Segoe UI",Roboto,"Apple SD Gothic Neo","Malgun Gothic",sans-serif}
+  .wrap{max-width:1180px;margin:0 auto;padding:40px 28px 80px}
+  h1{font-size:30px;margin:0 0 6px;letter-spacing:-.5px}
+  .sub{color:var(--muted);margin:0 0 8px}
+  .meta{color:var(--dim);font-size:13px;margin-bottom:34px}
+  h2{font-size:20px;margin:46px 0 18px;padding-bottom:8px;border-bottom:1px solid var(--line);
+    display:flex;align-items:center;gap:10px}
+  h2 .n{display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;
+    background:var(--blue);color:#04101f;border-radius:7px;font-size:14px;font-weight:700}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:22px}
+
+  /* 파이프라인 */
+  .pipe{display:flex;align-items:stretch;gap:0;flex-wrap:wrap}
+  .stage{flex:1;min-width:200px;background:var(--panel2);border:1px solid var(--line);
+    border-radius:12px;padding:16px 16px 18px;position:relative}
+  .stage .tag{font-size:11px;font-weight:700;letter-spacing:.5px;color:var(--dim);text-transform:uppercase}
+  .stage h3{margin:6px 0 4px;font-size:16px}
+  .stage .fn{font-family:"SF Mono",Consolas,monospace;font-size:12px;color:var(--cyan);
+    background:#0d1620;border:1px solid var(--line);border-radius:6px;padding:2px 7px;display:inline-block;margin:4px 0 8px}
+  .stage p{margin:0;font-size:13px;color:var(--muted)}
+  .arrow{display:flex;align-items:center;justify-content:center;color:var(--blue);font-size:24px;padding:0 6px;flex:0 0 auto}
+  .stage.s1{border-top:3px solid var(--green)}
+  .stage.s2{border-top:3px solid var(--purple)}
+  .stage.s3{border-top:3px solid var(--amber)}
+  .stage.s4{border-top:3px solid var(--blue)}
+
+  .legend{display:flex;gap:18px;flex-wrap:wrap;margin-top:16px;font-size:12px;color:var(--muted)}
+  .legend span{display:inline-flex;align-items:center;gap:6px}
+  .dot{width:10px;height:10px;border-radius:3px;display:inline-block}
+
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+  @media(max-width:780px){.grid2{grid-template-columns:1fr}.pipe{flex-direction:column}.arrow{transform:rotate(90deg);padding:6px 0}}
+
+  /* 코드/데이터 */
+  pre{margin:0;background:#0d1620;border:1px solid var(--line);border-radius:10px;
+    padding:14px 16px;overflow:auto;font:12.5px/1.7 "SF Mono",Consolas,monospace;color:#c9d1d9}
+  .k{color:var(--purple)} .s{color:var(--green)} .c{color:var(--dim)} .nu{color:var(--amber)}
+
+  table{width:100%;border-collapse:collapse;font-size:13px;margin-top:4px}
+  th,td{text-align:left;padding:9px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+  th{color:var(--dim);font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:.4px}
+  td code{font-family:"SF Mono",Consolas,monospace;font-size:12px;color:var(--cyan)}
+
+  .chip{display:inline-block;padding:2px 9px;border-radius:20px;font-size:11px;font-weight:600;margin:2px 4px 2px 0}
+  .now{background:rgba(63,185,80,.15);color:var(--green);border:1px solid rgba(63,185,80,.4)}
+  .later{background:rgba(110,118,129,.15);color:var(--muted);border:1px solid var(--line)}
+
+  /* 제언 */
+  .rec{background:var(--panel);border:1px solid var(--line);border-left:4px solid var(--blue);
+    border-radius:10px;padding:16px 18px;margin-bottom:14px}
+  .rec .head{display:flex;align-items:center;gap:10px;margin-bottom:6px}
+  .rec h4{margin:0;font-size:15.5px}
+  .rec .pri{margin-left:auto;font-size:11px;font-weight:700;padding:2px 9px;border-radius:6px}
+  .p-high{background:rgba(248,81,73,.16);color:var(--red)}
+  .p-mid{background:rgba(210,153,34,.16);color:var(--amber)}
+  .p-low{background:rgba(88,166,255,.14);color:var(--blue)}
+  .rec p{margin:4px 0 0;font-size:13.5px;color:var(--muted)}
+  .rec p b{color:var(--ink);font-weight:600}
+  .rec.tech{border-left-color:var(--purple)}
+  .rec.func{border-left-color:var(--cyan)}
+
+  .pillrow{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+  .lab{font-size:11px;color:var(--dim);font-family:monospace}
+  .foot{margin-top:50px;padding-top:18px;border-top:1px solid var(--line);color:var(--dim);font-size:12.5px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <h1>✉️ 메일 초안 스튜디오 — 아키텍처 & 제언</h1>
+  <p class="sub">회의록 → Claude 메일 초안 → Gmail 서식 변환 파이프라인 + 운용 대시보드</p>
+  <p class="meta">v1 · Streamlit 단일 앱 · 2026-06-21 기준 · 브랜치 <code>claude/gallant-bardeen-ijj12s</code></p>
+
+  <!-- 1. 동작 흐름 -->
+  <h2><span class="n">1</span> 동작 흐름 (Pipeline)</h2>
+  <div class="card">
+    <div class="pipe">
+      <div class="stage s1">
+        <div class="tag">① 입력</div>
+        <h3>텍스트 추출</h3>
+        <span class="fn">parse_input()</span>
+        <p>DocX / MD / TXT 업로드 → 본문 텍스트 추출. python-docx로 문단 파싱.</p>
+      </div>
+      <div class="arrow">➜</div>
+      <div class="stage s2">
+        <div class="tag">② 초안</div>
+        <h3>Claude 작성</h3>
+        <span class="fn">draft_email()</span>
+        <p>회의록 + 맥락 + 사이드바 지침(system) → Claude API → 메일 초안(Markdown).</p>
+      </div>
+      <div class="arrow">➜</div>
+      <div class="stage s3">
+        <div class="tag">③ 서식</div>
+        <h3>Gmail HTML</h3>
+        <span class="fn">format_gmail_html()</span>
+        <p>Markdown → 인라인 스타일 HTML. Gmail이 &lt;style&gt;을 떼므로 인라인으로.</p>
+      </div>
+      <div class="arrow">➜</div>
+      <div class="stage s4">
+        <div class="tag">④ 운용</div>
+        <h3>현황 대시보드</h3>
+        <span class="fn">st.session_state.runs</span>
+        <p>실행마다 기록 적재 → 지표·이력·초안 다시보기. 결과는 <b>'검토 대기'</b>(발송 X).</p>
+      </div>
+    </div>
+    <div class="legend">
+      <span><i class="dot" style="background:var(--green)"></i>입력</span>
+      <span><i class="dot" style="background:var(--purple)"></i>초안(Claude)</span>
+      <span><i class="dot" style="background:var(--amber)"></i>서식</span>
+      <span><i class="dot" style="background:var(--blue)"></i>대시보드(불변층)</span>
+    </div>
+  </div>
+
+  <!-- 2. 핵심 설계 원칙 -->
+  <h2><span class="n">2</span> 핵심 설계 원칙</h2>
+  <div class="grid2">
+    <div class="card">
+      <h3 style="margin-top:0">🔌 엔진 교체 가능 · 대시보드 불변</h3>
+      <p style="color:var(--muted);font-size:14px">3개 단계 함수는 <b style="color:var(--ink)">독립 시그니처</b>를 유지한다. 지금은 이 앱이 직접 돌리지만(v1), 나중에 1~3단계를 n8n으로 옮겨도 대시보드(④)는 그 상태만 읽어 그대로 표시 — 화면은 안 바뀐다.</p>
+      <div class="pillrow">
+        <span class="lab">parse_input(file) → str</span>
+        <span class="lab">draft_email(notes, ctx, model) → str</span>
+        <span class="lab">format_gmail_html(md) → str</span>
+      </div>
+    </div>
+    <div class="card">
+      <h3 style="margin-top:0">🧍 사람이 마지막 게이트</h3>
+      <p style="color:var(--muted);font-size:14px">파이프라인은 <b style="color:var(--ink)">'초안까지'</b>만 자동. 메일 발송은 자동화하지 않음. 그래서 완료 상태가 '완료'가 아니라 <b style="color:var(--amber)">'검토 대기'</b>. 현재 실제 초안 작성은 Claude Desktop에서 수제작 중 → 앱은 대시보드/서식 역할 우선.</p>
+    </div>
+  </div>
+
+  <!-- 3. 데이터 모델 -->
+  <h2><span class="n">3</span> 데이터 모델 (현재)</h2>
+  <div class="grid2">
+    <div class="card">
+      <h3 style="margin-top:0">실행 기록 한 건 (<code style="color:var(--cyan)">run</code>)</h3>
+<pre><span class="c"># st.session_state.runs 에 쌓이는 dict</span>
+{
+  <span class="s">"time"</span>:      <span class="s">"06-21 14:32"</span>,   <span class="c"># 표시용 시각</span>
+  <span class="s">"filename"</span>:  <span class="s">"주간회의.docx"</span>,
+  <span class="s">"s_input"</span>:   <span class="s">"✅"</span>,  <span class="c"># 단계별 상태</span>
+  <span class="s">"s_draft"</span>:   <span class="s">"✅"</span>,  <span class="c"># ⏳ 진행 ⚠️ 실패</span>
+  <span class="s">"s_format"</span>:  <span class="s">"✅"</span>,
+  <span class="s">"status"</span>:    <span class="s">"검토 대기"</span>,
+  <span class="s">"draft_md"</span>:   <span class="s">"제목: ..."</span>,  <span class="c"># 초안 원문</span>
+  <span class="s">"gmail_html"</span>: <span class="s">"&lt;div&gt;..."</span>   <span class="c"># 붙여넣기용</span>
+}</pre>
+    </div>
+    <div class="card">
+      <h3 style="margin-top:0">저장 위치 & 수명</h3>
+      <table>
+        <tr><th>데이터</th><th>위치</th><th>수명</th></tr>
+        <tr><td>실행 이력 <code>runs</code></td><td><code>session_state</code></td><td>접속 세션 한정 ⚠️</td></tr>
+        <tr><td>작성 지침</td><td><code>session_state</code></td><td>세션 한정</td></tr>
+        <tr><td>API 키</td><td><code>st.secrets</code></td><td>배포 환경</td></tr>
+        <tr><td>업로드 파일</td><td>메모리</td><td>요청 1회</td></tr>
+      </table>
+      <p style="color:var(--amber);font-size:13px;margin-top:12px">⚠️ 새로고침·재시작하면 이력이 날아간다. 영구 저장은 로드맵(아래 제언 T2).</p>
+    </div>
+  </div>
+
+  <!-- 4. 배포/운용 토폴로지 -->
+  <h2><span class="n">4</span> 배포 토폴로지</h2>
+  <div class="card">
+    <pre>  <span class="c">[로컬]</span>  app.py ──git push──▶ <span class="c">[GitHub]</span> Email_Agent_4_AM (private→public)
+                                      │
+                                      │ 푸시 시 자동 빌드(=CD, 별도 CI/CD 불필요)
+                                      ▼
+                          <span class="c">[Streamlit Community Cloud]</span>  https://...streamlit.app
+                                      │
+                          Secrets: ANTHROPIC_API_KEY  <span class="c">(현 단계 미설정 — 대시보드만 열람)</span>
+                                      ▼
+                              <span class="c">[사용자 브라우저]</span> 현황 / 새 초안 만들기</pre>
+    <div class="pillrow" style="margin-top:14px">
+      <span class="chip now">지금: Streamlit Cloud 호스팅</span>
+      <span class="chip now">지금: Claude Desktop 수제작 초안</span>
+      <span class="chip later">나중: Gmail API 초안 자동생성</span>
+      <span class="chip later">나중: 외부 DB 영구저장</span>
+      <span class="chip later">나중: n8n 무인 트리거</span>
+    </div>
+  </div>
+
+  <!-- 5. 제언 -->
+  <h2><span class="n">5</span> 기술적 제언 (Technical)</h2>
+
+  <div class="rec tech">
+    <div class="head"><h4>T1 · 이력 영구 저장 (가장 큰 구멍)</h4><span class="pri p-high">HIGH</span></div>
+    <p><b>지금:</b> 이력이 <code>session_state</code>라 새로고침하면 사라짐 → 대시보드의 "운용 기록" 가치가 0이 됨. <b>제안:</b> Google Sheet(무설정·무료) 또는 Supabase에 <code>runs</code> append. Streamlit Cloud 파일시스템은 재시작 시 초기화되니 SQLite 파일은 부적합. <b>난이도 낮음, 효과 큼 → 1순위.</b></p>
+  </div>
+
+  <div class="rec tech">
+    <div class="head"><h4>T2 · 키 없는 '미리보기 모드' 명시화</h4><span class="pri p-mid">MID</span></div>
+    <p>키 미설정이면 "새 초안 만들기" 버튼을 비활성화하고 <b>왜 막혔는지</b> 안내(현재는 누른 뒤에야 에러). 지금처럼 Desktop 수제작 단계엔 "초안 붙여넣기" 입력칸을 두면 키 없이도 ②를 사람이 채우고 ③ 서식·④ 대시보드를 그대로 쓸 수 있음 → 앱이 당장 쓸모가 생김.</p>
+  </div>
+
+  <div class="rec tech">
+    <div class="head"><h4>T3 · 입력 견고성 (PDF·HWP·인코딩)</h4><span class="pri p-mid">MID</span></div>
+    <p>이력 예시에 <code>스캔본.pdf</code>가 '실패'로 찍혀 있음 — 현재 DocX/MD/TXT만 지원. 한국 업무 환경이면 <b>PDF·HWP(한글)</b> 수요가 큼. <code>parse_input</code> 앞단만 확장(pdfplumber 등). 빈 파일·깨진 인코딩 가드도 추가.</p>
+  </div>
+
+  <div class="rec tech">
+    <div class="head"><h4>T4 · 서식 변환 안전성</h4><span class="pri p-low">LOW</span></div>
+    <p><code>format_gmail_html</code>의 문자열 <code>.replace()</code> 치환은 코드블록·표·중첩 리스트에서 깨질 수 있음. 장기적으로 bleach 살균 + 화이트리스트 인라이너로. 지금은 동작 OK라 우선순위 낮음.</p>
+  </div>
+
+  <h2 style="border-color:var(--cyan)"><span class="n" style="background:var(--cyan)">6</span> 기능적 제언 (Functional)</h2>
+
+  <div class="rec func">
+    <div class="head"><h4>F1 · 지침 프리셋 (수신자별 톤)</h4><span class="pri p-mid">MID</span></div>
+    <p>사이드바 지침이 시스템의 진짜 가치인데 지금은 단일 텍스트 1개. <b>"상사용/고객용/팀내부용"</b> 프리셋을 드롭다운으로 저장·전환하면 회의록마다 톤을 즉시 바꿀 수 있음.</p>
+  </div>
+
+  <div class="rec func">
+    <div class="head"><h4>F2 · 초안 재생성 & A/B</h4><span class="pri p-low">LOW</span></div>
+    <p>"다시 생성"(같은 입력, 다른 표현) 버튼과 2안 비교. 메일은 표현 미세조정이 잦아 효과 큼. 이력에 버전으로 묶어 보관.</p>
+  </div>
+
+  <div class="rec func">
+    <div class="head"><h4>F3 · 원클릭 Gmail 초안 (로드맵 1순위)</h4><span class="pri p-mid">MID</span></div>
+    <p>현재는 HTML 내려받아 수동 붙여넣기. Gmail API(OAuth)로 <b>임시보관함에 초안 자동 생성</b>까지. <b>발송은 끝까지 사람이</b> — 설계 원칙 유지. 단, OAuth 시크릿 관리 필요해 키 준비된 뒤 단계.</p>
+  </div>
+
+  <div class="rec func">
+    <div class="head"><h4>F4 · '검토 대기 → 발송됨' 상태 마감</h4><span class="pri p-low">LOW</span></div>
+    <p>실제로 보낸 초안에 사람이 체크 → '발송 완료' 표시. 그래야 대시보드의 '완료' 지표가 의미를 가짐(지금은 항상 0). 운용 도구로서의 완결성.</p>
+  </div>
+
+  <!-- 한 줄 요약 -->
+  <h2><span class="n">★</span> 한 줄 요약</h2>
+  <div class="card" style="border-left:4px solid var(--green)">
+    <p style="margin:0;font-size:15px">구조는 <b>깔끔하게 분리</b>돼 있어 확장 준비는 끝났다. 지금 당장 가장 효과 큰 한 수는 <b style="color:var(--green)">T1(이력 영구 저장)</b> — 그래야 '대시보드'가 진짜 운용 기록이 된다. 그리고 키 없는 현 단계엔 <b style="color:var(--cyan)">T2(초안 붙여넣기 입력)</b>를 더하면 Claude Desktop 수제작 흐름과 이 앱이 곧바로 맞물린다.</p>
+  </div>
+
+  <div class="foot">메일 초안 스튜디오 v1 · 단계 함수 독립 · 대시보드 불변 · 사람이 마지막 게이트 · 시크릿은 st.secrets로만</div>
+
+</div>
+</body>
+</html>
