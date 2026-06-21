@@ -16,6 +16,8 @@ import datetime as dt
 import markdown as md_lib
 import streamlit as st
 
+import db  # 이력 영구 저장 계층 (Supabase). 미설정이면 자동으로 세션 모드.
+
 # ----------------------------------------------------------------------------
 # 기본 설정
 # ----------------------------------------------------------------------------
@@ -45,11 +47,33 @@ def get_secret(name: str):
         return None
 
 
-# 세션 상태 = 이번 접속 동안의 실행 이력 (영구 저장은 README의 업그레이드 참고)
+# 실행 이력: Supabase가 설정돼 있으면 DB에서 복원, 아니면 세션 한정.
+# 세션 첫 진입 때 한 번만 로드하고, 이후엔 메모리 + DB에 함께 적재한다.
 if "runs" not in st.session_state:
     st.session_state.runs = []        # 완료/진행된 실행 기록
+    st.session_state.db_error = None
+    try:
+        loaded = db.load_runs()       # DB 미설정이면 None
+        if loaded is not None:
+            st.session_state.runs = loaded
+    except Exception as e:
+        # 테이블 미생성 등 — 앱은 계속 뜨고 세션 모드로 동작
+        st.session_state.db_error = str(e)
 if "instructions" not in st.session_state:
     st.session_state.instructions = DEFAULT_INSTRUCTIONS
+
+
+def persist_run(record: dict) -> None:
+    """실행 기록을 화면(세션)과 DB에 함께 남긴다.
+
+    DB 저장이 실패해도 화면 이력은 유지된다(운용이 멈추지 않게).
+    DB 미설정이면 save_run이 조용히 False를 반환하고 세션에만 남는다.
+    """
+    st.session_state.runs.append(record)
+    try:
+        db.save_run(record)
+    except Exception as e:
+        st.warning(f"이력 DB 저장 실패(화면에는 남아 있음): {e}")
 
 
 # ----------------------------------------------------------------------------
@@ -117,6 +141,17 @@ with st.sidebar:
     key_ok = bool(get_secret("ANTHROPIC_API_KEY"))
     st.markdown("**Claude API 키**")
     st.success("연결됨") if key_ok else st.warning("미설정 — Secrets에 등록 필요")
+    st.markdown("**이력 저장소(DB)**")
+    if db.db_enabled() and not st.session_state.get("db_error"):
+        st.success("Supabase 연결됨 — 이력 영구 저장")
+    elif db.db_enabled():
+        # 설정은 됐는데 조회 실패 — 대개 테이블 미생성(schema SQL 미실행)
+        st.warning(
+            "Supabase 설정됨, 그러나 읽기 실패 — supabase_schema.sql을 "
+            f"SQL Editor에 실행했는지 확인하세요.\n\n{st.session_state.db_error}"
+        )
+    else:
+        st.info("미설정 — 이번 접속 세션에만 기록")
     st.markdown("---")
     st.markdown("### 작성 지침")
     st.caption("Claude Desktop의 프로젝트 지침에 해당. 여기서 바꾸면 다음 초안부터 반영됩니다.")
@@ -146,7 +181,15 @@ with tab_dash:
     c3.metric("검토 대기", review)
     c4.metric("실패", failed)
 
-    st.markdown("#### 실행 이력")
+    head_l, head_r = st.columns([4, 1])
+    head_l.markdown("#### 실행 이력")
+    # DB가 켜져 있으면 다른 기기/세션의 기록을 다시 불러올 수 있다.
+    if db.db_enabled() and head_r.button("새로고침", use_container_width=True):
+        try:
+            st.session_state.runs = db.load_runs() or []
+        except Exception as e:
+            st.warning(f"새로고침 실패: {e}")
+        st.rerun()
     if not runs:
         st.info("아직 실행 기록이 없습니다. '새 초안 만들기' 탭에서 회의록을 올려 시작하세요.")
     else:
@@ -206,7 +249,7 @@ with tab_run:
             record["s_input"] = "✅"
         except Exception as e:
             record["s_input"] = "⚠️"; record["status"] = "실패"
-            st.session_state.runs.append(record)
+            persist_run(record)
             st.error(f"입력 단계 실패: {e}")
             st.stop()
 
@@ -217,7 +260,7 @@ with tab_run:
             record["s_draft"] = "✅"; record["draft_md"] = draft_md
         except Exception as e:
             record["s_draft"] = "⚠️"; record["status"] = "실패"
-            st.session_state.runs.append(record)
+            persist_run(record)
             st.error(f"초안 단계 실패: {e}")
             st.stop()
 
@@ -228,12 +271,12 @@ with tab_run:
             record["s_format"] = "✅"; record["gmail_html"] = gmail_html
         except Exception as e:
             record["s_format"] = "⚠️"; record["status"] = "검토 대기"
-            st.session_state.runs.append(record)
+            persist_run(record)
             st.warning(f"서식 단계 실패(초안은 사용 가능): {e}")
             st.stop()
 
         record["status"] = "검토 대기"   # 메일은 보내기 전 사람이 검토하므로 '완료'가 아니라 '검토 대기'
-        st.session_state.runs.append(record)
+        persist_run(record)
 
         # 결과 표시
         st.success("초안 생성 완료 — 검토 후 Gmail에 붙여넣으세요.")

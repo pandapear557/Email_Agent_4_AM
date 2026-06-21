@@ -38,12 +38,30 @@ streamlit run app.py
 
 API 키는 코드에 절대 적지 않고 `st.secrets`로만 참조합니다.
 
-| 이름 | 설명 |
-| --- | --- |
-| `ANTHROPIC_API_KEY` | Claude API 키 (`sk-ant-...`) |
+| 이름 | 설명 | 없으면 |
+| --- | --- | --- |
+| `ANTHROPIC_API_KEY` | Claude API 키 (`sk-ant-...`) | 초안 생성만 막힘, 대시보드는 열림 |
+| `SUPABASE_URL` | Supabase 프로젝트 URL | 이력이 세션 한정(영구 저장 안 됨) |
+| `SUPABASE_KEY` | Supabase anon public key | 〃 |
+
+모든 시크릿은 선택입니다. 없으면 해당 기능만 꺼지고 앱은 그대로 뜹니다(점진적 도입).
 
 - **로컬**: `.streamlit/secrets.toml`에 입력 (이 파일은 `.gitignore`로 커밋 금지)
 - **Streamlit Cloud**: 앱 설정 > **Secrets** 화면에 같은 내용 붙여넣기
+
+## 이력 영구 저장 (Supabase)
+
+기본은 실행 이력이 `st.session_state`에 있어 **새로고침하면 사라집니다.** Supabase를 붙이면 이력이 외부 DB에 남아 기기·세션을 넘어 유지됩니다.
+
+1. <https://supabase.com> 가입 → **New project** 생성 (무료).
+2. 좌측 **SQL Editor**에 이 레포의 [`supabase_schema.sql`](supabase_schema.sql) 내용을 붙여넣고 **Run** — `runs` 테이블이 생깁니다.
+3. **Project Settings > API**에서 **Project URL**과 **anon public** 키 복사.
+4. Secrets에 `SUPABASE_URL` / `SUPABASE_KEY` 등록 (로컬은 `secrets.toml`, Cloud는 Secrets 화면).
+5. 앱 사이드바 "이력 저장소(DB)"가 **"Supabase 연결됨"** 초록이면 성공. "현황" 탭의 **새로고침** 버튼으로 다른 기기 기록도 불러옵니다.
+
+**무료 한도**: DB 500MB(텍스트 이력엔 사실상 무제한) · 전송 5GB/월 · 활성 프로젝트 2개. 단, **7일간 요청이 없으면 프로젝트가 자동 일시정지**되니(데이터는 보존) 가끔 접속해 깨워 주세요.
+
+> 저장소 계층은 `db.py`로 분리돼 있어, 나중에 Google Sheet 등 다른 엔진으로 바꿔도 `db_enabled()/load_runs()/save_run()` 세 함수만 맞추면 `app.py`는 손대지 않아도 됩니다.
 
 ## 배포 (Streamlit Community Cloud)
 
@@ -56,8 +74,8 @@ API 키는 코드에 절대 적지 않고 `st.secrets`로만 참조합니다.
 
 ## 로드맵 (필요할 때만, 우선순위 순)
 
-1. **Gmail 초안 자동 생성** — Gmail API(OAuth) 연결해 버튼 하나로 임시보관함에 초안 생성. 발송은 항상 사람 검토 후. (필요 시크릿: Google OAuth 클라이언트)
-2. **이력 영구 저장** — `st.session_state` 대신 외부 저장소(Google Sheet / Supabase). Streamlit Cloud 파일시스템은 재시작 시 초기화되므로 SQLite 파일은 부적합.
+1. ✅ **이력 영구 저장 (완료)** — Supabase 백엔드(`db.py`). 위 "이력 영구 저장" 절 참고.
+2. **Gmail 초안 자동 생성** — Gmail API(OAuth) 연결해 버튼 하나로 임시보관함에 초안 생성. 발송은 항상 사람 검토 후. (필요 시크릿: Google OAuth 클라이언트)
 3. **Drive 자동 입력** — 업로드 대신 Drive 폴더 폴링/선택. `parse_input` 앞단만 교체.
 4. **n8n 이관(선택)** — 무인 트리거 자동화가 필요해지면 1~3단계를 n8n 워크플로로 옮기고, 대시보드는 n8n 실행 상태를 읽어 표시.
 
