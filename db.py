@@ -20,7 +20,8 @@ import streamlit as st
 
 # DB에 저장/복원하는 실행 기록 필드 (app.py의 record 구조와 일치)
 RUN_FIELDS = (
-    "time", "filename", "s_input", "s_draft", "s_format",
+    "time", "filename", "provider", "model",
+    "s_input", "s_draft", "s_format",
     "status", "draft_md", "gmail_html",
 )
 

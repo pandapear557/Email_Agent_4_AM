@@ -3,7 +3,7 @@
 
 흐름(엔진은 이 앱이 직접 돌림 = v1):
   1) 입력   : DocX/MD 업로드 -> 본문 텍스트 추출
-  2) 초안   : Claude API가 지침대로 메일 초안(Markdown) 작성
+  2) 초안   : 선택한 AI(Gemini/Claude…)가 지침대로 메일 초안(Markdown) 작성
   3) 서식   : Markdown -> Gmail 붙여넣기용 HTML
 
 "현황" 탭이 곧 운용 대시보드: 실행 이력과 단계별 상태를 한 화면에서 본다.
@@ -17,14 +17,12 @@ import markdown as md_lib
 import streamlit as st
 
 import db  # 이력 영구 저장 계층 (Supabase). 미설정이면 자동으로 세션 모드.
+import providers  # AI 제공자 계층 (Gemini/Claude…). 등록표에 한 줄로 새 AI 추가.
 
 # ----------------------------------------------------------------------------
 # 기본 설정
 # ----------------------------------------------------------------------------
 st.set_page_config(page_title="메일 초안 스튜디오", page_icon="✉️", layout="wide")
-
-DEFAULT_MODEL = "claude-sonnet-4-6"
-MODELS = ["claude-sonnet-4-6", "claude-opus-4-8", "claude-haiku-4-5-20251001"]
 
 DEFAULT_INSTRUCTIONS = (
     "당신은 사용자의 비서입니다. 아래 회의록을 바탕으로 한국어 업무 메일 초안을 씁니다.\n"
@@ -33,18 +31,6 @@ DEFAULT_INSTRUCTIONS = (
     "- 군더더기 없이 정중하고 간결하게.\n"
     "- 출력은 Markdown. 첫 줄은 '제목: ...' 형식의 메일 제목으로 시작한다."
 )
-
-def get_secret(name: str):
-    """시크릿을 안전하게 읽는다.
-
-    Streamlit은 secrets.toml이 아예 없으면 st.secrets 접근 시 예외를 던진다.
-    키를 안 넣고 대시보드만 볼 때(예: Claude Desktop 수제작 단계)도 앱이
-    떠야 하므로, 없으면 None을 돌려준다. 시크릿은 여전히 st.secrets로만 읽는다.
-    """
-    try:
-        return st.secrets.get(name, None)
-    except Exception:
-        return None
 
 
 # 실행 이력: Supabase가 설정돼 있으면 DB에서 복원, 아니면 세션 한정.
@@ -93,24 +79,14 @@ def parse_input(uploaded_file) -> str:
     raise ValueError(f"지원하지 않는 형식입니다: {uploaded_file.name} (DocX, MD, TXT만 됩니다)")
 
 
-def draft_email(notes: str, context: str, model: str) -> str:
-    """2단계: Claude가 회의록 + 추가 맥락으로 메일 초안(Markdown)을 만든다."""
-    key = get_secret("ANTHROPIC_API_KEY")
-    if not key:
-        raise RuntimeError(
-            "ANTHROPIC_API_KEY가 없습니다. Streamlit Cloud 앱 설정의 Secrets에 등록하세요. "
-            "(README의 Secrets 섹션 참고)"
-        )
-    import anthropic
-    client = anthropic.Anthropic(api_key=key)
+def draft_email(notes: str, context: str, model: str, provider: str) -> str:
+    """2단계: 선택한 AI가 회의록 + 추가 맥락으로 메일 초안(Markdown)을 만든다.
+
+    실제 AI 호출은 providers.generate가 담당한다(Gemini/Claude/…). 이 함수는
+    프롬프트를 조립해 넘기기만 하므로, 제공자를 바꿔도 여기는 안 바뀐다.
+    """
     user_content = f"# 회의록\n{notes}\n\n# 이번 메일 맥락\n{context or '(추가 맥락 없음)'}"
-    resp = client.messages.create(
-        model=model,
-        max_tokens=2000,
-        system=st.session_state.instructions,
-        messages=[{"role": "user", "content": user_content}],
-    )
-    return "".join(b.text for b in resp.content if getattr(b, "type", None) == "text").strip()
+    return providers.generate(provider, st.session_state.instructions, user_content, model)
 
 
 def format_gmail_html(draft_md: str) -> str:
@@ -137,10 +113,18 @@ def format_gmail_html(draft_md: str) -> str:
 # ----------------------------------------------------------------------------
 with st.sidebar:
     st.markdown("### 설정")
-    model = st.selectbox("초안 작성 모델", MODELS, index=MODELS.index(DEFAULT_MODEL))
-    key_ok = bool(get_secret("ANTHROPIC_API_KEY"))
-    st.markdown("**Claude API 키**")
-    st.success("연결됨") if key_ok else st.warning("미설정 — Secrets에 등록 필요")
+    provider = st.selectbox(
+        "AI 제공자", providers.provider_names(),
+        index=providers.provider_names().index(providers.DEFAULT_PROVIDER),
+    )
+    model = st.selectbox("모델", providers.models_for(provider))
+    st.markdown(f"**{provider} 키**")
+    if providers.provider_ready(provider):
+        st.success("연결됨")
+    else:
+        st.warning(f"미설정 — Secrets에 {providers.secret_name(provider)} 등록 필요")
+        if providers.provider_help(provider):
+            st.caption(providers.provider_help(provider))
     st.markdown("**이력 저장소(DB)**")
     if db.db_enabled() and not st.session_state.get("db_error"):
         st.success("Supabase 연결됨 — 이력 영구 저장")
@@ -198,6 +182,8 @@ with tab_dash:
                 {
                     "시각": r["time"],
                     "파일": r["filename"],
+                    "AI": r.get("provider", ""),
+                    "모델": r.get("model", ""),
                     "입력": r["s_input"],
                     "초안": r["s_draft"],
                     "서식": r["s_format"],
@@ -212,7 +198,11 @@ with tab_dash:
         for i, r in enumerate(reversed(runs)):
             if not r.get("draft_md"):
                 continue
-            with st.expander(f"{r['time']} · {r['filename']} — 초안 보기"):
+            eng = " · ".join(x for x in (r.get("provider"), r.get("model")) if x)
+            label = f"{r['time']} · {r['filename']}"
+            if eng:
+                label += f" · {eng}"
+            with st.expander(f"{label} — 초안 보기"):
                 st.text_area("초안 (Markdown)", r["draft_md"], height=200, key=f"hist_md_{i}")
                 if r.get("gmail_html"):
                     st.download_button(
@@ -238,6 +228,7 @@ with tab_run:
         record = {
             "time": dt.datetime.now().strftime("%m-%d %H:%M"),
             "filename": uploaded.name,
+            "provider": provider, "model": model,   # 어떤 AI로 만들었는지 기록
             "s_input": "⏳", "s_draft": "⏳", "s_format": "⏳",
             "status": "진행 중", "draft_md": "", "gmail_html": "",
         }
@@ -255,8 +246,8 @@ with tab_run:
 
         # 2단계: 초안
         try:
-            with st.spinner("Claude가 초안 작성 중…"):
-                draft_md = draft_email(notes, context, model)
+            with st.spinner(f"{provider}가 초안 작성 중… ({model})"):
+                draft_md = draft_email(notes, context, model, provider)
             record["s_draft"] = "✅"; record["draft_md"] = draft_md
         except Exception as e:
             record["s_draft"] = "⚠️"; record["status"] = "실패"

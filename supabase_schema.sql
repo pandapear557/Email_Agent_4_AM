@@ -6,6 +6,8 @@ create table if not exists public.runs (
     created_at  timestamptz not null default now(),
     time        text,          -- 표시용 시각 "MM-DD HH:MM"
     filename    text,
+    provider    text,          -- 사용한 AI 제공자 (예: Gemini (Google))
+    model       text,          -- 사용한 모델 (예: gemini-2.5-flash)
     s_input     text,          -- 단계 상태 이모지 (✅ ⏳ ⚠️)
     s_draft     text,
     s_format    text,
@@ -13,6 +15,10 @@ create table if not exists public.runs (
     draft_md    text,          -- 초안 원문(Markdown)
     gmail_html  text           -- Gmail 붙여넣기용 HTML
 );
+
+-- 이미 테이블을 만든 뒤라면(구버전) 아래 두 컬럼만 추가됨. 새로 만들면 무시됨.
+alter table public.runs add column if not exists provider text;
+alter table public.runs add column if not exists model    text;
 
 -- 최신순 조회를 위한 인덱스
 create index if not exists runs_id_desc on public.runs (id desc);

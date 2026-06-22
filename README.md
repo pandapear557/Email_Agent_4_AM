@@ -40,11 +40,17 @@ API 키는 코드에 절대 적지 않고 `st.secrets`로만 참조합니다.
 
 | 이름 | 설명 | 없으면 |
 | --- | --- | --- |
-| `ANTHROPIC_API_KEY` | Claude API 키 (`sk-ant-...`) | 초안 생성만 막힘, 대시보드는 열림 |
+| `GEMINI_API_KEY` | Gemini 키 — [무료 발급](https://aistudio.google.com/apikey) | Gemini 선택 시 초안 생성만 막힘 |
+| `ANTHROPIC_API_KEY` | Claude 키 (`sk-ant-...`) | Claude 선택 시 초안 생성만 막힘 |
 | `SUPABASE_URL` | Supabase 프로젝트 URL | 이력이 세션 한정(영구 저장 안 됨) |
 | `SUPABASE_KEY` | Supabase anon public key | 〃 |
 
 모든 시크릿은 선택입니다. 없으면 해당 기능만 꺼지고 앱은 그대로 뜹니다(점진적 도입).
+**AI 제공자는 쓰려는 것의 키만** 있으면 됩니다(예: Gemini만 쓰면 `GEMINI_API_KEY`만).
+
+### AI 제공자 (여러 AI 갈아끼우기)
+
+초안 작성 엔진은 `providers.py`로 분리돼 있어 사이드바에서 **제공자/모델을 골라 바로 비교 테스트**할 수 있습니다. 기본은 무료 티어가 있는 **Gemini**. 새 AI(OpenAI 등)를 붙이려면 `providers.py`의 `PROVIDERS` 등록표에 블록 하나만 추가하면 되고, `app.py`는 손대지 않습니다. 각 실행이 어떤 AI·모델로 만들어졌는지는 현황 이력에 함께 기록됩니다.
 
 - **로컬**: `.streamlit/secrets.toml`에 입력 (이 파일은 `.gitignore`로 커밋 금지)
 - **Streamlit Cloud**: 앱 설정 > **Secrets** 화면에 같은 내용 붙여넣기

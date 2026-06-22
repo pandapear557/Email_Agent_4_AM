@@ -1,5 +1,7 @@
 streamlit>=1.40
-anthropic>=0.40
 python-docx>=1.1
 markdown>=3.6
 supabase>=2.4
+# AI 제공자 SDK — 쓰는 것만 있으면 되지만, 배포 편의를 위해 둘 다 포함.
+google-genai>=0.3      # Gemini (기본, 무료 티어)
+anthropic>=0.40        # Claude (선택)
