@@ -203,7 +203,7 @@ with tab_dash:
     head_l, head_r = st.columns([4, 1])
     head_l.markdown("#### 실행 이력")
     # DB가 켜져 있으면 다른 기기/세션의 기록을 다시 불러올 수 있다.
-    if db.db_enabled() and head_r.button("새로고침", use_container_width=True):
+    if db.db_enabled() and head_r.button("새로고침", width="stretch"):
         try:
             st.session_state.runs = db.load_runs() or []
         except Exception as e:
@@ -226,7 +226,7 @@ with tab_dash:
                 }
                 for r in reversed(runs)
             ],
-            use_container_width=True,
+            width="stretch",
             hide_index=True,
         )
         # 개별 실행 펼쳐서 결과 다시 보기
