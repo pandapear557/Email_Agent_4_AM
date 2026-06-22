@@ -12,6 +12,8 @@
 """
 
 import io
+import os
+import subprocess
 import datetime as dt
 import markdown as md_lib
 import streamlit as st
@@ -60,6 +62,37 @@ def persist_run(record: dict) -> None:
         db.save_run(record)
     except Exception as e:
         st.warning(f"이력 DB 저장 실패(화면에는 남아 있음): {e}")
+
+
+@st.cache_data(show_spinner=False)
+def get_version():
+    """배포된 코드의 git 커밋(짧은 해시 · 메시지)을 반환한다. 못 읽으면 None.
+
+    Streamlit Cloud는 git 체크아웃에서 실행되므로, 화면에 이 값을 띄우면
+    '지금 떠 있는 게 어느 커밋인지'를 바로 확인할 수 있다.
+    """
+    here = os.path.dirname(os.path.abspath(__file__))
+    # 1) git CLI (가장 정확: 해시 + 메시지)
+    try:
+        r = subprocess.run(
+            ["git", "-C", here, "log", "-1", "--pretty=format:%h · %s"],
+            capture_output=True, text=True, timeout=5,
+        )
+        if r.returncode == 0 and r.stdout.strip():
+            return r.stdout.strip()
+    except Exception:
+        pass
+    # 2) 폴백: .git에서 짧은 해시만이라도 읽는다
+    try:
+        head = open(os.path.join(here, ".git", "HEAD")).read().strip()
+        if head.startswith("ref:"):
+            ref = head.split(" ", 1)[1].strip()
+            sha = open(os.path.join(here, ".git", ref)).read().strip()
+        else:
+            sha = head
+        return f"{sha[:7]} (메시지 없음)"
+    except Exception:
+        return None
 
 
 # ----------------------------------------------------------------------------
@@ -148,6 +181,8 @@ with st.sidebar:
 # 메인 — 두 탭: 현황(대시보드) / 새 초안 만들기
 # ----------------------------------------------------------------------------
 st.title("✉️ 메일 초안 스튜디오")
+_ver = get_version()
+st.caption(f"🔖 배포 버전: {_ver}" if _ver else "🔖 배포 버전: (확인 불가 — git 정보 없음)")
 
 tab_dash, tab_run = st.tabs(["현황", "새 초안 만들기"])
 
